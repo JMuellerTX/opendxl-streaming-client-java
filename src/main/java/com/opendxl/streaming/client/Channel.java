@@ -693,9 +693,6 @@ public class Channel implements Consumer, Producer, AutoCloseable {
             }
 
             final String api = builder.toString();
-            if (qryParam.length() > 0) {
-                builder.append("?").append(qryParam);
-            }
 
             try {
 
