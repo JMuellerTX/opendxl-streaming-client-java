@@ -101,7 +101,7 @@ public class HttpConnection implements AutoCloseable {
      * The supported TLS protocols to use
      */
     private static final String[] SUPPORTED_PROTOCOLS =
-            new String[] {"TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"};
+            new String[] {"TLSv1.2", "TLSv1.3"};
 
     /**
      * @param verifyCertBundle CA Bundle chain certificates. This string shall be either the certificates themselves or

@@ -151,6 +151,6 @@ public class HttpConnectionTest {
             + "-----END CERTIFICATE-----\n";
 
     private static final String[] SUPPORTED_PROTOCOLS =
-            new String[] {"TLSv1", "TLSv1.1", "TLSv1.2", "TLSv1.3"};
+            new String[] {"TLSv1.2", "TLSv1.3"};
 
 }
