@@ -1105,9 +1105,26 @@ public class Channel implements Consumer, Producer, AutoCloseable {
                     }
                 }
 
-            } catch (final PermanentError | TemporaryError error) {
+            } catch (final TemporaryError error) {
+                if (retryOnFail) {
+                    logger.warn("Temporary error in run loop, retrying: " + error.getMessage(), error);
+                } else {
+                    try {
+                        delete();
+                    } catch (final Exception e) {
+                        logger.error("Failed to delete consumer due to error", e);
+                    }
+                    error.setApi("run");
+                    logger.error("Exiting run method due to error", error);
+                    throw error;
+                }
+            } catch (final PermanentError error) {
                 // Delete consumer instance.
-                delete();
+                try {
+                    delete();
+                } catch (final Exception e) {
+                    logger.error("Failed to delete consumer due to error", e);
+                }
                 error.setApi("run");
                 logger.error("Exiting run method due to error", error);
                 throw error;
