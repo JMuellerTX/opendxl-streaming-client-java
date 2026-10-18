@@ -906,7 +906,7 @@ public class ChannelTest {
         // Setup channel object under test
         ChannelAuth channelAuthMock = Mockito.mock(ChannelAuth.class);
         Mockito.doNothing().when(channelAuthMock).authenticate(ArgumentMatchers.any());
-        Channel channel = getCreatedChannel(channelAuthMock);
+        Channel channel = getCreatedChannel(channelAuthMock, false);
         // Setup callback which receives consumed records. It will be called only once.
         final int[] callbackCounter = new int[1];
         ConsumerRecordProcessor consumerRecordCallback = new ConsumerRecordProcessor() {
@@ -937,6 +937,37 @@ public class ChannelTest {
         Assert.assertEquals(409, error.getStatusCode());
         Assert.assertEquals("Dummy 409 error message: HTTP/1.1 409 Conflict", error.getMessage());
         Assert.assertEquals("run", error.getApi());
+    }
+
+    @Test
+    public final void testRunRetriesUponTemporaryErrorWhenRetryOnFailIsTrue() throws ClientError {
+        // Setup
+        setUpWireMockStubs(CONSUMER_ID, "topic-1", JSON_CONSUMER_RECORD_0);
+        ChannelAuth channelAuthMock = Mockito.mock(ChannelAuth.class);
+        Mockito.doNothing().when(channelAuthMock).authenticate(ArgumentMatchers.any());
+        Channel channel = getCreatedChannel(channelAuthMock);
+        final int[] callbackCounter = new int[1];
+        ConsumerRecordProcessor consumerRecordCallback = new ConsumerRecordProcessor() {
+            @Override
+            public boolean processCallback(ConsumerRecords consumerRecords, String consumerId) throws PermanentError {
+                callbackCounter[0]++;
+                if (callbackCounter[0] >= 2) {
+                    ((AtomicBoolean) PA.getValue(channel, "stopRequested")).set(true);
+                    return false;
+                }
+                return true;
+            }
+        };
+        stubFor(post(urlEqualTo("/databus/consumer-service/v1/consumers/" + CONSUMER_ID + "/offsets"))
+                .willReturn(aResponse()
+                        .withStatus(409)
+                        .withBody("Dummy 409 error message")));
+
+        // Test
+        channel.run(consumerRecordCallback, "topic-1");
+
+        // Evaluate
+        Assert.assertEquals(2, callbackCounter[0]);
     }
 
     @Test
@@ -1532,12 +1563,17 @@ public class ChannelTest {
     }
 
     private Channel getCreatedChannel(final ChannelAuth channelAuth) throws PermanentError, TemporaryError {
+        return getCreatedChannel(channelAuth, true);
+    }
+
+    private Channel getCreatedChannel(final ChannelAuth channelAuth, final boolean retryOnFail)
+            throws PermanentError, TemporaryError {
         Channel channel = new Channel("http://localhost:" + WIREMOCK_PORT + "",
                 channelAuth,
                 "cg1",
                 null,
                 null,
-                true,
+                retryOnFail,
                 null,
                 null,
                 null);
